@@ -18,7 +18,19 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 
 export function normalizeWhatsAppNumber(number: string): string {
-  return number.replace(/\D/g, "");
+  // 1. تنظيف الرقم من أي رموز أو مسافات
+  let cleaned = number.replace(/\D/g, "");
+
+  // 2. معالجة الأرقام المحلية (لو بيبدأ بـ 0، شيله وحط 20)
+  if (cleaned.startsWith("0")) {
+    cleaned = "20" + cleaned.substring(1);
+  }
+  // 3. لو الرقم مش بيبدأ بكود الدولة (20)، ضيفه
+  else if (!cleaned.startsWith("20")) {
+    cleaned = "20" + cleaned;
+  }
+
+  return cleaned;
 }
 
 export function WhatsAppButton({
