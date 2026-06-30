@@ -5,7 +5,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { DressStatus } from "@prisma/client";
+import type { DressStatus } from "@prisma/client";
 import { Loader2Icon, UploadCloudIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -33,14 +33,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase";
-
+const DRESS_STATUS_OPTIONS = ["AVAILABLE", "RENTED", "MAINTENANCE"] as const;
 const editDressSchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
   slug: z.string().trim().min(1, "Slug is required."),
   description: z.string().trim().min(1, "Description is required."),
   size: z.string().trim().min(1, "Size is required."),
   color: z.string().trim().min(1, "Color is required."),
-  status: z.enum(DressStatus, { message: "Status is required." }),
+  status: z.enum(DRESS_STATUS_OPTIONS, { message: "Status is required." }),
   categoryId: z.string().trim().min(1, "Category is required."),
 });
 
@@ -305,9 +305,9 @@ export function EditDressForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {Object.values(DressStatus).map((status) => (
+                      {DRESS_STATUS_OPTIONS.map((status) => (
                         <SelectItem key={status} value={status}>
-                          {statusLabels[status]}
+                          {statusLabels[status as DressStatus]}
                         </SelectItem>
                       ))}
                     </SelectContent>

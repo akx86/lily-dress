@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DressStatus } from "@prisma/client";
+import type { DressStatus } from "@prisma/client";
 import { Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
