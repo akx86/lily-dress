@@ -52,7 +52,18 @@ type CategoriesTableProps = {
   categories: CategoryData[];
 };
 
-// 1. فورم الإضافة (بتاعتك زي ما هي)
+// دالة معالجة السلاج الموحدة اللي بتدعم العربي
+function generateSlug(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\p{L}\p{N}-]+/gu, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// 1. فورم الإضافة
 function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   const router = useRouter();
 
@@ -62,14 +73,13 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   });
 
   const isSubmitting = form.formState.isSubmitting;
+
+  // مراقبة حقل الاسم
   const categoryName = form.watch("name");
 
   useEffect(() => {
     if (categoryName) {
-      const generatedSlug = categoryName
-        .toLowerCase()
-        .trim()
-        .replace(/[\s\W-]+/g, "-");
+      const generatedSlug = generateSlug(categoryName);
 
       if (!form.getFieldState("slug").isDirty) {
         form.setValue("slug", generatedSlug, { shouldValidate: true });
@@ -78,6 +88,9 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   }, [categoryName, form]);
 
   async function onSubmit(values: CategoryFormValues) {
+    // خط الدفاع الأخير
+    values.slug = generateSlug(values.slug);
+
     const result = await addCategory(values);
     if (result.success) {
       toast.success("Category added successfully.");
@@ -143,7 +156,7 @@ function AddCategoryForm({ onSuccess }: { onSuccess?: () => void }) {
   );
 }
 
-// 2. فورم التعديل (مبنية على الفورم بتاعتك)
+// 2. فورم التعديل
 function EditCategoryForm({
   category,
   onSuccess,
@@ -160,7 +173,23 @@ function EditCategoryForm({
 
   const isSubmitting = form.formState.isSubmitting;
 
+  // مراقبة حقل الاسم أثناء التعديل
+  const categoryName = form.watch("name");
+
+  useEffect(() => {
+    if (categoryName) {
+      const generatedSlug = generateSlug(categoryName);
+
+      if (!form.getFieldState("slug").isDirty) {
+        form.setValue("slug", generatedSlug, { shouldValidate: true });
+      }
+    }
+  }, [categoryName, form]);
+
   async function onSubmit(values: CategoryFormValues) {
+    // خط الدفاع الأخير
+    values.slug = generateSlug(values.slug);
+
     const result = await updateCategory({ id: category.id, ...values });
     if (result.success) {
       toast.success("Category updated successfully.");
@@ -302,7 +331,7 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
                     </TableCell>
                     <TableCell className="pr-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {/* زرار التعديل بيفتح المودال المنفصل */}
+                        {/* زرار التعديل */}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -336,7 +365,7 @@ export function CategoriesTable({ categories }: CategoriesTableProps) {
         </div>
       </div>
 
-      {/* مودال التعديل: بره اللوب عشان ميكررش كود الـ Dialog لكل كاتيجوري */}
+      {/* مودال التعديل */}
       <Dialog
         open={!!editingCategory}
         onOpenChange={(open) => !open && setEditingCategory(null)}

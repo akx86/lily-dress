@@ -2,7 +2,8 @@
 /* eslint-disable react-hooks/purity */
 "use client";
 
-import { useState } from "react";
+// ضفنا useEffect هنا
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { DressStatus } from "@prisma/client";
@@ -32,7 +33,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase";
+
 const DRESS_STATUS_OPTIONS = ["AVAILABLE", "RENTED", "MAINTENANCE"] as const;
+
 const addDressSchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
   slug: z.string().trim().min(1, "Slug is required."),
@@ -57,6 +60,17 @@ const statusLabels: Record<DressStatus, string> = {
   MAINTENANCE: "Maintenance",
 };
 
+// دالة سينيور لمعالجة السلاج تدعم العربي والإنجليزي وتمنع المسافات
+function generateSlug(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-") // تحويل المسافات لشرط
+    .replace(/[^\p{L}\p{N}-]+/gu, "") // الحفاظ على الحروف والأرقام فقط (يدعم العربي بسبب \p{L})
+    .replace(/-+/g, "-") // منع تكرار الشرط جنب بعض
+    .replace(/^-+|-+$/g, ""); // مسح أي شرطة في أول أو آخر الكلمة
+}
+
 export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -78,6 +92,20 @@ export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
 
   const isSubmitting = form.formState.isSubmitting || isUploading;
 
+  // مراقبة حقل العنوان عشان نكتب السلاج أوتوماتيك
+  const dressTitle = form.watch("title");
+
+  useEffect(() => {
+    if (dressTitle) {
+      const generatedSlug = generateSlug(dressTitle);
+
+      // هنحدث السلاج أوتوماتيك بس لو اليوزر متدخلش وكتبه بإيده
+      if (!form.getFieldState("slug").isDirty) {
+        form.setValue("slug", generatedSlug, { shouldValidate: true });
+      }
+    }
+  }, [dressTitle, form]);
+
   const clearFile = (e: React.MouseEvent) => {
     e.preventDefault();
     setFile(null);
@@ -89,6 +117,10 @@ export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
       toast.error("Please upload an image for the dress.");
       return;
     }
+
+    // خط دفاع أخير: إجبار تنظيف السلاج قبل ما يتبعت للداتا بيز
+    values.slug = generateSlug(values.slug);
+
     const supabase = createClient();
 
     try {
@@ -136,16 +168,13 @@ export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
 
   return (
     <Form {...form}>
-      {/* تحويل الفورم لـ Flex Column عشان نقدر نفصل المحتوى عن الزرار */}
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
-        {/* منطقة المحتوى القابلة للتمرير (Scrollable Content) */}
-        {/* pr-2 بتدي مساحة صغيرة للـ Scrollbar عشان ميغطيش على أطراف الـ Inputs */}
-        <div className="max-h-[60vh] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
           <div className="space-y-2">
             <FormLabel>Dress Image</FormLabel>
-            <div className="flex items-center justify-center w-full">
+            <div className="flex w-full items-center justify-center">
               {previewUrl ? (
-                <div className="relative flex h-40 w-full flex-col items-center justify-center rounded-lg border-2 border-zinc-200 bg-zinc-50 overflow-hidden">
+                <div className="relative flex h-40 w-full flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-zinc-200 bg-zinc-50">
                   <Image
                     src={previewUrl}
                     alt="Preview"
@@ -160,7 +189,7 @@ export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
                   </button>
                 </div>
               ) : (
-                <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 transition-colors">
+                <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-zinc-300 bg-zinc-50 transition-colors hover:bg-zinc-100">
                   <div className="flex flex-col items-center justify-center pb-6 pt-5">
                     <UploadCloudIcon className="mb-2 h-8 w-8 text-zinc-400" />
                     <p className="text-sm font-medium text-zinc-500">
@@ -331,16 +360,14 @@ export function AddDressForm({ categories, onSuccess }: AddDressFormProps) {
           </div>
         </div>
 
-        {/* الزرار الثابت (Sticky Action Bar) */}
-        {/* shrink-0 عشان نمنع الزرار إنه ينضغط لما الشاشة تصغر */}
-        <div className="mt-4 shrink-0 border-t border-border pt-4 flex justify-end">
+        <div className="mt-4 flex shrink-0 justify-end border-t border-border pt-4">
           <Button
             type="submit"
             disabled={isSubmitting}
             className="w-full sm:w-auto"
           >
             {isSubmitting && (
-              <Loader2Icon className="animate-spin mr-2 h-4 w-4" />
+              <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
             )}
             {isSubmitting ? "Saving to Catalog..." : "Add Dress"}
           </Button>

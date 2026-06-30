@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { DressStatus } from "@prisma/client";
@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase";
+
 const DRESS_STATUS_OPTIONS = ["AVAILABLE", "RENTED", "MAINTENANCE"] as const;
+
 const editDressSchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
   slug: z.string().trim().min(1, "Slug is required."),
@@ -65,6 +67,17 @@ function getMainImageUrl(dress: SerializedDress): string | null {
   return mainImage?.url ?? dress.images[0]?.url ?? null;
 }
 
+// دالة معالجة السلاج
+function generateSlug(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\p{L}\p{N}-]+/gu, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export function EditDressForm({
   dress,
   categories,
@@ -92,6 +105,20 @@ export function EditDressForm({
 
   const isSubmitting = form.formState.isSubmitting || isUploading;
 
+  // مراقبة حقل العنوان عشان نكتب السلاج أوتوماتيك أثناء التعديل
+  const dressTitle = form.watch("title");
+
+  useEffect(() => {
+    if (dressTitle) {
+      const generatedSlug = generateSlug(dressTitle);
+
+      // التحديث بيحصل بس لو اليوزر مغيرش السلاج بإيده
+      if (!form.getFieldState("slug").isDirty) {
+        form.setValue("slug", generatedSlug, { shouldValidate: true });
+      }
+    }
+  }, [dressTitle, form]);
+
   const clearFile = (e: React.MouseEvent) => {
     e.preventDefault();
     setFile(null);
@@ -99,6 +126,9 @@ export function EditDressForm({
   };
 
   async function onSubmit(values: EditDressFormValues) {
+    // خط الدفاع الأخير: إجبار تنظيف السلاج قبل ما يتبعت للداتا بيز
+    values.slug = generateSlug(values.slug);
+
     const supabase = createClient();
     try {
       setIsUploading(true);
@@ -150,7 +180,7 @@ export function EditDressForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
-        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2">
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
           <div className="space-y-2">
             <FormLabel>Dress Image</FormLabel>
             <div className="flex w-full items-center justify-center">

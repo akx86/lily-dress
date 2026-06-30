@@ -279,9 +279,10 @@ export async function getDressBySlug(
     if (!slug?.trim()) {
       return { success: false, error: "Slug is required." };
     }
+    const decodedSlug = decodeURIComponent(slug.trim());
 
     const dress = await prisma.dress.findUnique({
-      where: { slug: slug.trim() },
+      where: { slug: decodedSlug },
       include: dressInclude,
     });
 
