@@ -19,11 +19,25 @@ export type AddCategoryInput = {
   slug: string;
 };
 
+// ضفنا الـ Type الخاص بالتعديل
+export type UpdateCategoryInput = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 function getErrorMessage(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
       const target = (error.meta?.target as string[])?.join(", ") ?? "field";
       return `A category with this ${target} already exists.`;
+    }
+    // هندسة البيانات: حماية ضد حذف قسم مرتبط بفساتين
+    if (error.code === "P2003") {
+      return "Cannot delete this category. It is currently linked to one or more dresses. Please reassign or delete the dresses first.";
+    }
+    if (error.code === "P2025") {
+      return "Category not found.";
     }
   }
 
@@ -66,12 +80,62 @@ export async function addCategory(
       },
       select: { id: true, name: true, slug: true },
     });
-    revalidatePath("/categories");
-    revalidatePath("/dresses");
+
+    // مسح الكاش من الجذور عشان الـ Navbar والصفحات التانية تتحدث
+    revalidatePath("/", "layout");
 
     return { success: true, data: category };
   } catch (error) {
     console.error("[addCategory]", error);
+    return { success: false, error: getErrorMessage(error) };
+  }
+}
+
+export async function updateCategory(
+  input: UpdateCategoryInput,
+): Promise<ActionResult<CategoryData>> {
+  try {
+    const { id, name, slug } = input;
+
+    if (!id?.trim())
+      return { success: false, error: "Category ID is required." };
+    if (!name?.trim()) return { success: false, error: "Name is required." };
+    if (!slug?.trim()) return { success: false, error: "Slug is required." };
+
+    const category = await prisma.category.update({
+      where: { id },
+      data: {
+        name: name.trim(),
+        slug: slug.trim(),
+      },
+      select: { id: true, name: true, slug: true },
+    });
+
+    revalidatePath("/", "layout");
+
+    return { success: true, data: category };
+  } catch (error) {
+    console.error("[updateCategory]", error);
+    return { success: false, error: getErrorMessage(error) };
+  }
+}
+
+export async function deleteCategory(
+  id: string,
+): Promise<ActionResult<{ id: string }>> {
+  try {
+    if (!id?.trim())
+      return { success: false, error: "Category ID is required." };
+
+    await prisma.category.delete({
+      where: { id },
+    });
+
+    revalidatePath("/", "layout");
+
+    return { success: true, data: { id } };
+  } catch (error) {
+    console.error("[deleteCategory]", error);
     return { success: false, error: getErrorMessage(error) };
   }
 }
