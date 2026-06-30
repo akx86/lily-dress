@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 1. حالات الفستان (تخدم نظام الإيجار)
+enum DressStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+}
+
+// 2. إعدادات المتجر
+model StoreSettings {
+  id             String   @id @default(cuid())
+  whatsappNumber String?
+  facebookLink  String?
+  heroMessage    String?
+  updatedAt      DateTime @updatedAt
+}
+
+// 3. الأقسام
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  dresses   Dress[] 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 4. الفساتين (الجدول الرئيسي)
+model Dress {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  description String      @db.Text
+  price       Decimal?    @db.Decimal(10, 2)
+  size        String      // مثل: "M" أو "38"
+  color       String      // مثل: "أحمر" أو كود اللون
+  status      DressStatus @default(AVAILABLE)
+
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id])
+
+  images      Image[]     // علاقة 1-to-many مع الصور
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+// 5. الصور
+model Image {
+  id        String   @id @default(cuid())
+  url       String
+  isMain    Boolean  @default(false)
+  
+  dressId   String
+  dress     Dress    @relation(fields: [dressId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+}
+
+// 6. مدير النظام
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
